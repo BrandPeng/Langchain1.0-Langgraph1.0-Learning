@@ -17,6 +17,11 @@ LangChain 1.0 是用于构建 LLM 驱动应用程序的框架的最新主要版�
 - ✅ **结构化输出** - 使用 Pydantic 模型定义输出格式
 - ✅ **语义化版本控制** - 1.x 系列保证 API 稳定
 
+**后续计划** ： 
+1. 基于Langchain 1.0 的完整RAG前后端项目，并包含RAG的各种优化   
+⚫ 技术栈：Agentic RAG、Agent、LangChain、ChromaDB、SQLite、FastAPI、Vue。   
+2. 基于LangGrah 1.0的完整多智能体前后端项目。   
+⚫ 技术栈：：Python、LangGraph、LangChain、FastAPI、MCP、Vue、SQLite
 ---
 
 ## 🚀 快速开始
