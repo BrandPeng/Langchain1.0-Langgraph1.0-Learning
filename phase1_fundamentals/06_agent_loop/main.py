@@ -119,22 +119,22 @@ def example_2_streaming():
     system_prompt="你是一个有帮助的助手。"
     )
 
-    print("\n问题：北京天气如何？然后计算 10 加 20")
+    print("\n问题：北京天气如何？")
     print("\n流式输出（实时显示）：")
     print("-" * 70)
 
     # 使用 stream 方法
     for chunk in agent.stream({
         "messages": [{"role": "user", "content": "北京天气如何？"}]
-    }):
-        # chunk 是字典，包含更新的状态
+    }, stream_mode="values"):
+        # values 返回完整状态，messages 位于顶层
         if 'messages' in chunk:
             # 获取最新的消息
             latest_msg = chunk['messages'][-1]
 
             # 如果是 AI 的最终回答
-            if hasattr(latest_msg, 'content') and latest_msg.content:
-                if not hasattr(latest_msg, 'tool_calls') or not latest_msg.tool_calls:
+            if latest_msg.type == 'ai' and latest_msg.content:
+                if not latest_msg.tool_calls:
                     print(f"\n最终回答: {latest_msg.content}")
 
     print("\n关键点：")
@@ -203,22 +203,31 @@ def example_4_inspect_state():
     print("\n执行步骤：")
 
     step = 0
+    # updates 按节点返回增量：{"model": {"messages": [...]}}。
     for chunk in agent.stream({
         "messages": [{"role": "user", "content": "100 除以 5 等于多少？"}]
-    }):
-        step += 1
-        print(f"\n步骤 {step}:")
+    }, stream_mode="updates"):
+        for node_name, update in chunk.items():
+            messages = update.get("messages", [])
+            if not messages:
+                continue
 
-        if 'messages' in chunk:
-            latest = chunk['messages'][-1]
-            msg_type = latest.__class__.__name__
-            print(f"  类型: {msg_type}")
-
-            if hasattr(latest, 'tool_calls') and latest.tool_calls:
-                print(f"  工具调用: {latest.tool_calls[0]['name']}")
-            elif hasattr(latest, 'content') and latest.content:
-                content_preview = latest.content[:50] if len(latest.content) > 50 else latest.content
-                print(f"  内容: {content_preview}...")
+            step += 1
+            print(f"\n步骤 {step}:")
+            print(f"  节点: {node_name}")
+            for message in messages:
+                print(f"  类型: {message.__class__.__name__}")
+                if getattr(message, "tool_calls", None):
+                    for tool_call in message.tool_calls:
+                        print(f"  工具调用: {tool_call['name']}")
+                        print(f"  参数: {tool_call['args']}")
+                elif getattr(message, "type", None) == "tool":
+                    print(f"  工具: {message.name}")
+                    print(f"  结果: {message.content}")
+                elif message.content:
+                    content = str(message.content)
+                    preview = content[:50] + ("..." if len(content) > 50 else "")
+                    print(f"  内容: {preview}")
 
     print("\n关键点：")
     print("  - stream 让你看到每个步骤")

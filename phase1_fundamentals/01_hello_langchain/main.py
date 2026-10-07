@@ -267,8 +267,7 @@ def example_7_multiple_models():
     LangChain 1.0 的优势之一是可以轻松切换不同的模型提供商
     只需要修改模型字符串：
     - "groq:llama-3.3-70b-versatile"
-    - "groq:mixtral-8x7b-32768"
-    - "groq:gemma2-9b-it"
+    - "groq:llama-3.1-8b-instant"
     """
     print("\n" + "="*70)
     print("示例 7：对比不同模型的输出")
@@ -277,7 +276,7 @@ def example_7_multiple_models():
     # Groq 上可用的不同模型
     models_to_test = [
         "groq:llama-3.3-70b-versatile",
-        "groq:mixtral-8x7b-32768",
+        "groq:llama-3.1-8b-instant",
     ]
 
     prompt = "用一句话解释什么是机器学习。"
@@ -288,9 +287,9 @@ def example_7_multiple_models():
             print(f"\n使用模型: {model_name}")
             print("-" * 70)
 
-            # model 已在文件开头通过 get_model() 初始化
-
-            response = model.invoke(prompt)
+            # 每次创建当前名称对应的模型，避免重复调用全局 model
+            selected_model = init_chat_model(model_name, api_key=GROQ_API_KEY)
+            response = selected_model.invoke(prompt)
             print(f"回复: {response.content}")
 
         except Exception as e:

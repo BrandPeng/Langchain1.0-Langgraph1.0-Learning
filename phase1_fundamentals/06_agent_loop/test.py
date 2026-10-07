@@ -66,11 +66,11 @@ print("-" * 70)
 
 for chunk in agent.stream({
     "messages": [{"role": "user", "content": "5 乘以 6"}]
-}):
+}, stream_mode="values"):
     if 'messages' in chunk:
         latest = chunk['messages'][-1]
-        if hasattr(latest, 'content') and latest.content:
-            if not hasattr(latest, 'tool_calls') or not latest.tool_calls:
+        if latest.type == 'ai' and latest.content:
+            if not latest.tool_calls:
                 print(f"最终答案: {latest.content}")
 
 print("\n测试成功！")

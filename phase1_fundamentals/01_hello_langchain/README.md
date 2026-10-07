@@ -61,8 +61,7 @@ model = init_chat_model(
 ```python
 # Groq
 "groq:llama-3.3-70b-versatile"
-"groq:mixtral-8x7b-32768"
-"groq:gemma2-9b-it"
+"groq:llama-3.1-8b-instant"
 
 # OpenAI
 "openai:gpt-4"
