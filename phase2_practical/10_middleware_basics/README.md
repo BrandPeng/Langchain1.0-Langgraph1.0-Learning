@@ -166,19 +166,38 @@ agent = create_agent(
 
 ### 3. 消息修剪中间件
 
+`messages` 使用合并规则，返回列表切片不会删除旧消息。需要先用
+`RemoveMessage(id=REMOVE_ALL_MESSAGES)` 清空历史，再写入要保留的消息。
+这个更新在有无 checkpointer 时均有效。
+
 ```python
+from langchain_core.messages import RemoveMessage
+from langgraph.graph.message import REMOVE_ALL_MESSAGES
+
 class MessageTrimmerMiddleware(AgentMiddleware):
     def __init__(self, max_messages=5):
         super().__init__()
+        if max_messages < 1:
+            raise ValueError("max_messages 必须大于 0")
         self.max_messages = max_messages
 
     def before_model(self, state, runtime):
         messages = state.get('messages', [])
         if len(messages) > self.max_messages:
-            # 只保留最近的 N 条消息
-            return {"messages": messages[-self.max_messages:]}
+            return {"messages": [
+                RemoveMessage(id=REMOVE_ALL_MESSAGES),
+                *messages[-self.max_messages:],
+            ]}
         return None
 ```
+
+`max_messages=4` 限制模型调用前的历史消息数，不包括 `system_prompt`；
+新增一条 AI 回复后，返回状态最多有 5 条消息。示例 3 的六轮调用后消息数为
+`2、4、5、5、5、5`。
+
+此处只演示无工具文本对话的数量限制。用于其他场景时，还需按模型提供商要求
+保留系统消息和合法的对话起点，并确保工具调用与工具结果成对保留。
+参见 [LangChain 消息删除说明](https://docs.langchain.com/oss/python/langchain/short-term-memory#delete-messages)。
 
 ### 4. 输出验证中间件
 

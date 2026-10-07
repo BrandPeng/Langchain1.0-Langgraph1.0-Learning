@@ -97,12 +97,22 @@ print(f"使用的工具: {used_tools}")
 
 ### 基本用法
 
+显式指定模式，读取与模式匹配的数据结构：
+
+- `stream_mode="values"`：每步完整状态，读取 `chunk["messages"]`。
+- `stream_mode="updates"`：按节点返回增量，读取 `chunk[节点名]["messages"]`。
+  `main.py` 的示例 4 使用这种方式展示模型调用、工具结果和最终回答。
+
+这些是图执行步骤的更新；模型逐 token 输出使用 `stream_mode="messages"`。
+参见 [LangChain 流式输出文档](https://docs.langchain.com/oss/python/langchain/streaming)。
+
+
 ```python
 agent = create_agent(model=model, tools=tools)
 
 # 使用 .stream() 方法
-for chunk in agent.stream({"messages": [...]}):
-    # chunk 是状态更新
+for chunk in agent.stream({"messages": [...]}, stream_mode="values"):
+    # values 返回完整状态，messages 位于顶层
     if 'messages' in chunk:
         latest_msg = chunk['messages'][-1]
         # 处理最新消息
@@ -112,13 +122,13 @@ for chunk in agent.stream({"messages": [...]}):
 ### 实时显示最终答案
 
 ```python
-for chunk in agent.stream(input):
+for chunk in agent.stream(input, stream_mode="values"):
     if 'messages' in chunk:
         latest = chunk['messages'][-1]
 
         # 只显示最终答案（不包含 tool_calls）
-        if hasattr(latest, 'content') and latest.content:
-            if not hasattr(latest, 'tool_calls') or not latest.tool_calls:
+        if latest.type == 'ai' and latest.content:
+            if not latest.tool_calls:
                 print(latest.content)
 ```
 
@@ -222,7 +232,7 @@ for i, msg in enumerate(response['messages'], 1):
 
 ```python
 step = 0
-for chunk in agent.stream(input):
+for chunk in agent.stream(input, stream_mode="values"):
     step += 1
     print(f"步骤 {step}:")
     if 'messages' in chunk:
@@ -300,7 +310,7 @@ except Exception as e:
 ```python
 # 使用流式输出
 print("正在思考...")
-for chunk in agent.stream(input):
+for chunk in agent.stream(input, stream_mode="values"):
     if 'messages' in chunk:
         latest = chunk['messages'][-1]
         # 显示进度

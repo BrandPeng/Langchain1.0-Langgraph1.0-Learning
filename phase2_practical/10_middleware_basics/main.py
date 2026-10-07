@@ -15,6 +15,8 @@ from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
 from langchain.agents import create_agent
 from langchain_core.tools import tool
+from langchain_core.messages import RemoveMessage
+from langgraph.graph.message import REMOVE_ALL_MESSAGES
 from langchain.agents.middleware import AgentMiddleware
 from langgraph.checkpoint.memory import InMemorySaver
 
@@ -166,11 +168,14 @@ class MessageTrimmerMiddleware(AgentMiddleware):
     消息修剪中间件 - 限制消息数量
 
     before_model 修改消息列表
-    注意：需要配合无 checkpointer 使用，否则历史会被恢复
+    messages 使用合并规则，必须显式删除旧消息才能替换历史。
+    有无 checkpointer 均适用；本示例仅演示无工具的文本对话。
     """
 
     def __init__(self, max_messages=5):
         super().__init__()
+        if max_messages < 1:
+            raise ValueError("max_messages 必须大于 0")
         self.max_messages = max_messages
         self.trimmed_count = 0  # 统计修剪次数
 
@@ -183,7 +188,8 @@ class MessageTrimmerMiddleware(AgentMiddleware):
             trimmed_messages = messages[-self.max_messages:]
             self.trimmed_count += 1
             print(f"\n[修剪] 消息从 {len(messages)} 条减少到 {len(trimmed_messages)} 条 (第{self.trimmed_count}次修剪)")
-            return {"messages": trimmed_messages}
+            # 只返回切片会被合并回旧历史；先清空，再写入保留的消息。
+            return {"messages": [RemoveMessage(id=REMOVE_ALL_MESSAGES), *trimmed_messages]}
 
         return None
 
@@ -200,7 +206,7 @@ def example_3_message_trimming():
 
     print("\n[说明] 不使用 checkpointer，手动管理消息历史\n")
 
-    middleware = MessageTrimmerMiddleware(max_messages=4)  # 最多保留 4 条
+    middleware = MessageTrimmerMiddleware(max_messages=4)  # 模型调用前最多保留 4 条历史消息
     agent = create_agent(
         model=model,
         tools=[],
@@ -227,18 +233,17 @@ def example_3_message_trimming():
         messages = response['messages']
 
         print(f"调用后消息数: {len(messages)}")
-        if len(messages) <= 4:
-            print(f"消息列表: {[m.content[:15] for m in messages]}")
+        print(f"消息列表: {[m.content[:15] for m in messages]}")
 
     print(f"\n修剪统计: 共修剪了 {middleware.trimmed_count} 次")
 
     print("\n关键点：")
     print("  - before_model 在传给模型前修剪消息")
-    print("  - max_messages=4 限制发送给模型的消息数")
-    print("  - 但返回的 response 会包含新生成的消息")
-    print("  - 不使用 checkpointer 避免历史恢复")
+    print("  - max_messages=4 限制历史消息数，不含 system_prompt")
+    print("  - response 包含新增的 AI 回复，因此最多有 5 条消息")
+    print("  - RemoveMessage 显式删除旧历史；启用 checkpointer 后同样有效")
     print("\n生产建议：")
-    print("  - 简单修剪用这种方式")
+    print("  - 本示例仅用于无工具的文本对话；其他场景需保留系统消息、合法的对话起点和工具调用/结果配对")
     print("  - 复杂场景用 SummarizationMiddleware（第8章）")
 
 # ============================================================================
